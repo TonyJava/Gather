@@ -15,6 +15,9 @@ CSerialComm::~CSerialComm(void)
 		CloseHandle(hSerialComm);
 	}
 }
+/*
+ * 打开串口
+ */
 BOOL CSerialComm::OpenPort(void *pOwner  //指向父指针
 						   ,UINT PortNo //串口号
 						   ,UINT baud   //波特率
