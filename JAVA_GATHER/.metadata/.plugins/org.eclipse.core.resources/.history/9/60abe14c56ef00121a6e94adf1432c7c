@@ -1,0 +1,28 @@
+package com.JGather;
+public class GatherThread extends Thread
+{
+  long iArg;
+  public GatherThread(String s,long iTmp)
+  {
+	 super(s);
+	  iArg=iTmp;
+  }
+ public void run()
+ {
+	long iMax =iArg;
+	double dSum=1.0;
+	for (long i=2;i<=iMax;i++)
+	{
+		dSum+=1.0/(i*i);
+	}
+	double pi =Math.sqrt(6*dSum);
+	System.out.println(getName()+"计算结果是"+pi);
+	try {
+		Thread.sleep(1000);
+	} catch (Exception e) {
+		// TODO: handle exception
+	}
+	
+ }
+
+}

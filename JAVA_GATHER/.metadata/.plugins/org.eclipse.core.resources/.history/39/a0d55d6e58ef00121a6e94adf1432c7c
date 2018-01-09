@@ -1,0 +1,135 @@
+package com.JGather;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+
+public class GatherThread extends Thread
+{
+  String sip;
+  String sport;
+  public GatherThread(String sarg0,String sarg1)
+  {
+	sip=sarg0;
+	sport=sarg1;
+	  
+  }
+ public void run()
+ {
+	 OraclHelp oh =new OraclHelp();
+	 TcpHelp th =new TcpHelp(sip, Integer.parseInt(sport));
+	 try
+		{
+			System.out.println(sip+"run");
+			//OraclHelp oh =new OraclHelp();
+			if(!oh.Oraclconn())return;
+			ArrayList<IPMeterinfo> al = new ArrayList<IPMeterinfo>();
+			al=oh.GetIpMeterInfo(sip, sport);
+			//TcpHelp th =new TcpHelp(sip, Integer.parseInt(sport));
+			int ncount =al.size();
+			if(!th.ConnServer(20000)) //网络连接不成功 
+			{
+				TStatus ts = new TStatus();
+				IPMeterinfo ipi =new IPMeterinfo();
+				for(int i=0;i<ncount;i++)
+				{
+					ipi=al.get(i);
+					ts.sMeterCode=ipi.sMetercode;
+					ts.sStatus="2";
+					oh.UpDateStatusData(ts);
+				}
+				oh.OraclClose();
+				th.Closesocket();
+			}
+			for(int i=0;i<ncount;i++)
+			{
+				IPMeterinfo ipi =new IPMeterinfo();
+				ipi =al.get(i);
+				System.out.println(ipi.sMetercode);
+				IpMeterCMD imc =new IpMeterCMD();
+				String strcmd =imc.GetCBCommandS(ipi.sMetercode, ipi.sRemark, ipi.sGuiyue, "0");
+				if(!strcmd.equals("error"))
+				{
+					if(ipi.sRemark.equals("E")) //电表采集
+					{
+						E_Meter_Instant dElectRecv =new E_Meter_Instant();
+						TStatus ts = new TStatus();
+						int nIndex=0;
+						int nStatus=0;
+						while(nIndex<2)
+						{
+							dElectRecv=(E_Meter_Instant)th.SendElectCmd(strcmd, "E", ipi.sGuiyue,ipi.sMetercode);
+							if(dElectRecv.sMeter_Instant_NO.equals(ipi.sMetercode)) //获得表编号证明数据采集完整
+							{
+								break;
+							}
+							else
+							{
+								nIndex++;
+							}
+						}
+						nStatus=th.GetNetFlag();
+						ts.sMeterCode=dElectRecv.sMeter_Instant_NO;
+						ts.sStatus=Integer.toString(nStatus);	
+						if(nStatus==1)
+						{
+							//数据滤波
+							//WaitForSingleObject(hMutex,INFINITE);
+							//FilterDate(dElectRecv,&dElectRecv);
+							//ReleaseMutex(hMutex);
+							//插入数据库，更新数据库
+							oh.InsertElectData(dElectRecv);
+							oh.UpdateElectData(dElectRecv);
+							System.out.println(dElectRecv.sMeter_Instant_NO+"A_Current"+dElectRecv.dA_Current);
+							System.out.println(dElectRecv.sMeter_Instant_NO+"A_Phase_voltage"+dElectRecv.dA_Phase_voltage);
+							double fPower=Integer.parseInt(ipi.sPower);
+							if((fPower!=0.0)&&(0.6*fPower<dElectRecv.dInstant_Active))
+							//if(0.6*fPower<dElectRecv.dInstant_Active)
+							{
+								ts.sStatus="10";//过载报警
+							}
+						}
+						oh.UpDateStatusData(ts);
+					}
+					if(ipi.sRemark.equals("W"))
+					{
+						W_Meter_Instant dWaterRecv =new W_Meter_Instant();
+						TStatus ts = new TStatus();
+						int nIndex=0;
+						int nStatus=0;
+						while(nIndex<2)
+						{
+							dWaterRecv=(W_Meter_Instant)th.SendWaterCmd(strcmd, "W", ipi.sGuiyue, ipi.sMetercode);
+							if(dWaterRecv.sMeter_Instant_NO.equals(ipi.sMetercode))
+							{
+								break;
+							}
+							else
+							{
+								nIndex++;
+							}
+						}
+						nStatus=th.GetNetFlag();
+						ts.sMeterCode=dWaterRecv.sMeter_Instant_NO;
+						ts.sStatus=Integer.toString(nStatus);
+						if(nStatus==1)
+						{
+							oh.InsertWaterData(dWaterRecv);
+							oh.UpdateWaterData(dWaterRecv);
+						}
+						oh.UpDateStatusData(ts);
+					}
+				}
+			}
+			oh.OraclClose();
+			th.Closesocket();
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	    finally
+	    {
+	    	oh.OraclClose();
+			th.Closesocket();	
+	    }
+ }
+}

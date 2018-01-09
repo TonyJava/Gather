@@ -1,0 +1,18 @@
+package com.JGather;
+
+import java.sql.SQLException;
+
+public class JGather {
+
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		OraclHelp oh =new OraclHelp();
+		try {
+			oh.GetIPInfo();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+}

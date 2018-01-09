@@ -1,0 +1,262 @@
+package com.JGather;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+
+ class IPMeterinfo
+{
+	 public String sIP;
+	 public String sPort;
+	 public String sMetercode;
+	 public String sRemark;
+	 public String sGuiyue;
+	 public String sPower;
+}
+ class E_Meter_Instant
+ {
+	 
+	 public String  fElectricitytime;//采集时间
+	 public	double dA_Phase_voltage; //A相电压
+	 public	double dB_phase_voltage; //B向电压
+	 public	double dC_Phase_voltage; //C向电压
+	 public	double dA_Current; //A向电流
+	 public	double dB_Current; //B向电流
+	 public	double dC_Current; //C向电流
+	 public	double dTotal_Active;//总有功
+	 public	double dTotal_Reactive;//总无功
+	 public	double dTotal_Powerfactor;//总功率因数
+	 public	double dFreguency;//频率
+	 public	double dForWard_Active;//正向有功(总功率)
+	 public	double dReForWard_Active;//负向有功
+	 public	double dForWard_Active_A;//正向有功
+	 public	double dReForWard_Active_A;//负向有功
+	 public	double dInstant_Active;//瞬时功率
+	 public String sMeter_Instant_NO;//电表编号
+	 public String  sStatus;//状态
+ }
+ class TStatus
+ {
+	 public String sMeterCode;//编码
+	 public String sStatus;//状态
+ }
+ class  W_Meter_Instant
+ {
+ 	String fRecord_Time;//采集时间
+ 	double dRecord_Date;// 采集数据
+ 	String  sMeter_Instant_NO;//水表编号
+ 	String  sStatus;//状态
+ }
+public class OraclHelp {
+	private Connection conn=null;
+	private Statement st=null;
+	private ResultSet rs=null;
+	private String url="jdbc:oracle:thin:@59.67.1.40:1521:db1";
+	private String name="programer";
+	private String pw="emp";
+	private String ClassName="oracle.jdbc.driver.OracleDriver";
+	/*
+	public OraclHelp(String url,String name,String pw)
+	{
+		this.url=url;
+		this.name=name;
+		this.pw=pw;
+	}*/
+	public boolean Oraclconn()
+	{
+		try {
+			Class.forName(ClassName);
+			conn=DriverManager.getConnection(url,
+					name, pw);
+			st =conn.createStatement();
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+			return false;
+		}
+		return true;
+	}
+	public void OraclClose() throws SQLException
+	{
+		if(conn!=null)
+		{
+			st.close();
+			conn.close();
+			
+		}
+		
+	}
+	/*
+	函数功能：得到数据表里有多少个ip地址
+	参数意义：无
+	返回值： ip地址的个数
+	*/
+	
+	public ArrayList<IPMeterinfo> GetIPInfo() throws SQLException
+	{
+		 ArrayList<IPMeterinfo> al =new ArrayList<IPMeterinfo>();
+		 al.clear();
+		String SqlCmd="select distinct(CONVERTOR_IP),CONVERTOR_PORT from PROGRAMER.DEVICE_INFO where (STIPULATION =1 or STIPULATION=2 or METER_TYPE='W') and IS_DORMDEVICE=0 and CONVERTOR_IP is not null";
+		rs =st.executeQuery(SqlCmd);
+	
+		while(rs.next())
+		{
+			//add( )方法添加的是对象的引用，每次都更新了这个引用的值，当然list里面的值都一样的。
+			//所以IPaddress ipa =new IPaddress()应放循环里
+			IPMeterinfo ipa =new IPMeterinfo();//
+			ipa.sIP=rs.getString("CONVERTOR_IP");
+			ipa.sPort=rs.getString("CONVERTOR_PORT");
+			al.add(ipa);  
+		
+		}
+		return al;
+	}
+	/*
+	函数功能：通过不同ip地址，返回改ip上的所有表信息
+	参数意义：IPAdress Ip地址，IpMeterInfo 返回ip地址上的表信息。
+	返回值：
+	*/
+	//BOOL  CDataBank::GetIpMeterInfo(CString IpAddress,CString IpPort,CArray<IPMETERINFO,IPMETERINFO&> * ArrayIpMeterInfo)
+	public ArrayList<IPMeterinfo> GetIpMeterInfo(String sIp,String sPort)throws SQLException
+	{
+		ArrayList<IPMeterinfo> al =new ArrayList<IPMeterinfo>();
+		al.clear();
+		String SqlCmd="select lpad(METER_ID,12,0) METER_ID,CONVERTOR_IP,CONVERTOR_PORT,METER_TYPE,nvl(POWER,0.0) POWER,STIPULATION from PROGRAMER.DEVICE_INFO t where convertor_ip="+
+		"'"+sIp+"'"+"and convertor_port="+"'"+sPort+"'"+
+		"and(STIPULATION =1 or STIPULATION=2 or METER_TYPE='W')and METER_ID is not null";
+		rs =st.executeQuery(SqlCmd);
+			
+		while(rs.next())
+		{
+			//add( )方法添加的是对象的引用，每次都更新了这个引用的值，当然list里面的值都一样的。
+			//所以IPaddress ipa =new IPaddress()应放循环里
+			IPMeterinfo ipa =new IPMeterinfo();//
+			ipa.sIP=rs.getString("CONVERTOR_IP");
+			ipa.sPort=rs.getString("CONVERTOR_PORT");
+			ipa.sMetercode=rs.getString("METER_ID");//Integer.toString(rs.getInt("METER_ID"));
+			ipa.sRemark=rs.getString("METER_TYPE");
+			ipa.sGuiyue=Integer.toString(rs.getInt("STIPULATION"));
+			ipa.sPower=Integer.toString(rs.getInt("POWER"));
+			al.add(ipa);  
+		}
+		return al;
+	}
+	/*\
+	 * 插入电表采集数据
+	 */
+	public int InsertElectData(Object obj) throws SQLException
+	{
+		E_Meter_Instant InserElect =new E_Meter_Instant();
+		InserElect =(E_Meter_Instant)obj;
+		String SqlCmd="";
+		SqlCmd=String.format("insert into PROGRAMER.E_METER_CLLCT values(PROGRAMER.E_METER_CLLCT_S.NEXTVAL,to_number('%s'),SYSDATE,000,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,'%s','','','','','')",
+				InserElect.sMeter_Instant_NO,InserElect.dA_Phase_voltage,InserElect.dB_phase_voltage,InserElect.dC_Phase_voltage,InserElect.dA_Current,InserElect.dB_Current,InserElect.dC_Current,InserElect.dTotal_Active,InserElect.dTotal_Reactive,InserElect.dTotal_Powerfactor,
+				InserElect.dFreguency,InserElect.dForWard_Active,InserElect.dReForWard_Active,InserElect.dForWard_Active_A,InserElect.dReForWard_Active_A,InserElect.sMeter_Instant_NO);
+		int i=0;
+		try {
+			i=st.executeUpdate(SqlCmd);
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+		
+		
+		return i;
+	}
+	/*
+	 * 更新电表数据
+	 */
+	public int UpdateElectData(Object obj)throws SQLException
+	{
+		
+		E_Meter_Instant UpDateElect =new E_Meter_Instant();
+		UpDateElect =(E_Meter_Instant)obj;
+		String SqlCmd="";
+		SqlCmd=String.format("update PROGRAMER.E_METER_INSTANT set ELECTRICITY_TIME =SYSDATE, A_PHASE_VOLTAGE=%f ,B_PHASE_VOLTAGE =%f,"
+				+ "C_PHASE_VOLTAGE=%f,CURRENT_A=%f,CURRENT_B = %f,CURRENT_C =%f,TOTAL_ACTIVE=%f,TOTAL_REACTIVE=%f,"
+				+ "TOTAL_POWER_FACTOR=%f ,FREQUENCY=%f,FORWARD_ACTIVE=%f,REFORWARD_ACTIVE=%f,FORWARD_ACTIVE_A=%f,"
+				+"REFORWARD_ACTIVE_A=%f ,METER_INSTANT_NO='%s' where METER_INSTANT_ID =to_number('%s')",
+				UpDateElect.dA_Phase_voltage,UpDateElect.dB_phase_voltage,UpDateElect.dC_Phase_voltage,UpDateElect.dA_Current,
+				UpDateElect.dB_Current,UpDateElect.dC_Current,UpDateElect.dTotal_Active,UpDateElect.dTotal_Reactive,UpDateElect.dTotal_Powerfactor,
+				UpDateElect.dFreguency,UpDateElect.dForWard_Active,UpDateElect.dReForWard_Active,
+				UpDateElect.dForWard_Active_A,UpDateElect.dReForWard_Active_A,UpDateElect.sMeter_Instant_NO,UpDateElect.sMeter_Instant_NO);
+		
+		int i=0;
+		try {
+			i=st.executeUpdate(SqlCmd);
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+		return i;
+	}
+	/*
+	 * 插入状态表
+	 */
+	public int InsertStatusData(Object obj)
+	{
+		TStatus tStatus =new TStatus();
+		tStatus =(TStatus)obj;
+		String SqlCmd="";
+
+		SqlCmd=String.format("insert into PROGRAMER.DEVICE_STATUS_HIS values(PROGRAMER.DEVICE_STATUS_S.NEXTVAL,to_number('%s'),'%s',SYSDATE)",tStatus.sMeterCode,tStatus.sStatus);
+		int i=0;
+		try {
+			i=st.executeUpdate(SqlCmd);
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+		return i;
+	}
+	public int UpDateStatusData(Object obj)
+	{
+		TStatus tStatus =new TStatus();
+		tStatus =(TStatus)obj;
+		String SqlCmd="";
+		SqlCmd=String.format("update PROGRAMER.DEVICE_STATUS set STATUS='%s',UPDATE_TIME=SYSDATE where METER_ID=to_number('%s')",tStatus.sStatus,tStatus.sMeterCode);
+		int i=0;
+		try {
+			i=st.executeUpdate(SqlCmd);
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+		return i;
+	}
+	public int InsertWaterData(Object obj)
+	{
+		W_Meter_Instant WaterInfo =new W_Meter_Instant();
+		WaterInfo =(W_Meter_Instant)obj;
+		String SqlCmd="";
+		SqlCmd=String.format("insert into PROGRAMER.w_meter_cllct t values( PROGRAMER.W_METER_CLLCT_S.NEXTVAL,to_number(%s),sysdate,000 ,%f,to_char(to_number('%s')),'','','','','')",
+				WaterInfo.sMeter_Instant_NO,WaterInfo.dRecord_Date,WaterInfo.sMeter_Instant_NO);
+		int i=0;
+		try {
+			i=st.executeUpdate(SqlCmd);
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+		return i;
+	}
+	public int UpdateWaterData(Object obj)
+	{
+		W_Meter_Instant WaterInfo =new W_Meter_Instant();
+		WaterInfo =(W_Meter_Instant)obj;
+		String SqlCmd="";
+		SqlCmd=String.format("update PROGRAMER.W_METER_INSTANT set RECORD_TIME=SYSDATE,RECORD_MS =000,RECORD_DATA=%f,METER_INSTANT_NO=to_char(to_number('%s')) where METER_INSTANT_ID = to_number(%s)",
+				WaterInfo.dRecord_Date,WaterInfo.sMeter_Instant_NO,WaterInfo.sMeter_Instant_NO);
+		int i=0;
+		try {
+			i=st.executeUpdate(SqlCmd);
+		} catch (Exception e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		}
+		return i;
+	}
+}

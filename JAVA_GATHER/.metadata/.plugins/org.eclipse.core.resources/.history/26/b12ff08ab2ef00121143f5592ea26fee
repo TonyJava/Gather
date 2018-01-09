@@ -1,0 +1,41 @@
+package com.JGather;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+
+public class JGather {
+
+	public static void main(String[] args){
+		// TODO Auto-generated method stub
+		OraclHelp oh =new OraclHelp("mainThread");
+		ArrayList<IPMeterinfo> al = new ArrayList<IPMeterinfo>();
+		IPMeterinfo ipi =new IPMeterinfo();
+		try {
+			if(oh.Oraclconn())
+			{
+				al=oh.GetIPInfo();
+				int count =al.size();
+				for(int i=0;i<count;i++)
+				{
+					ipi=al.get(i);
+					GatherThread gt =new GatherThread(ipi.sIP, ipi.sPort);
+					gt.start();
+					Thread.sleep(100);
+				}
+			}
+			oh.OraclClose();
+			
+		} catch (SQLException e) {
+			// TODO: handle exception
+			e.printStackTrace();
+		} catch (Exception e)
+		{
+			e.printStackTrace();
+		}
+		finally
+		{
+			oh.OraclClose();
+		}
+		
+	}
+}
